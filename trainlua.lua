@@ -1,38 +1,52 @@
--- Train to Fight - Speed Bypass (FIXED VERSION)
--- Menggunakan remote yang BENAR dari Sigma Spy
+-- Train to Fight - Ultra Speed Bypass
+-- SPAM SANGAT CEPAT dengan parameter yang benar
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 
--- ✅ REMOTE YANG BENAR (dari Sigma Spy)
-local AutoTrain = ReplicatedStorage:WaitForChild("AutoTrain")
-local Bindable = AutoTrain:WaitForChild("Bindable")
-local AutoTrainStateHasChanged = Bindable:WaitForChild("AutoTrainStateHasChanged")
+-- Get remotes (cek semua kemungkinan)
+local AutoTrainRemote
+local TrainSpeedRemote
+
+pcall(function()
+    -- Coba path 1: AutoTrain (dari Sigma Spy)
+    local AutoTrain = ReplicatedStorage:WaitForChild("AutoTrain", 3)
+    if AutoTrain then
+        local Bindable = AutoTrain:FindFirstChild("Bindable")
+        if Bindable then
+            AutoTrainRemote = Bindable:FindFirstChild("AutoTrainStateHasChanged")
+        end
+    end
+end)
+
+pcall(function()
+    -- Coba path 2: TrainSystem (backup)
+    local TrainSystem = ReplicatedStorage:FindFirstChild("TrainSystem")
+    if TrainSystem then
+        local Remote = TrainSystem:FindFirstChild("Remote")
+        if Remote then
+            TrainSpeedRemote = Remote:FindFirstChild("TrainSpeedHasChanged")
+        end
+    end
+end)
 
 -- Configuration
 local Config = {
-    TrainSpeed = 100,
-    AutoTrain = {
-        Arms = false,
-        Legs = false,
-        Back = false,
-        Agility = false
-    },
-    BypassSpeed = true,
-    SpamSpeed = true,
+    SpeedMultiplier = 1000000,  -- Mulai dari 1 JUTA!
+    SpamDelay = 0.001,          -- Spam SUPER cepat (1ms)
     Enabled = false
 }
 
 -- GUI Setup
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "TrainSpeedBypass"
+ScreenGui.Name = "TrainUltraSpeed"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 400, 0, 580)
-MainFrame.Position = UDim2.new(0.5, -200, 0.5, -290)
+MainFrame.Size = UDim2.new(0, 450, 0, 400)
+MainFrame.Position = UDim2.new(0.5, -225, 0.5, -200)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -47,9 +61,9 @@ UICorner.Parent = MainFrame
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 50)
 Title.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-Title.Text = "⚡ Train Speed Bypass (FIXED)"
-Title.TextColor3 = Color3.fromRGB(255, 215, 0)
-Title.TextSize = 20
+Title.Text = "⚡ ULTRA SPEED BYPASS"
+Title.TextColor3 = Color3.fromRGB(255, 50, 50)
+Title.TextSize = 24
 Title.Font = Enum.Font.GothamBold
 Title.Parent = MainFrame
 
@@ -57,278 +71,250 @@ local TitleCorner = Instance.new("UICorner")
 TitleCorner.CornerRadius = UDim.new(0, 15)
 TitleCorner.Parent = Title
 
+-- Remote Status
+local RemoteStatus = Instance.new("TextLabel")
+RemoteStatus.Size = UDim2.new(0.9, 0, 0, 35)
+RemoteStatus.Position = UDim2.new(0.05, 0, 0, 60)
+RemoteStatus.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+RemoteStatus.TextColor3 = Color3.fromRGB(200, 200, 200)
+RemoteStatus.TextSize = 11
+RemoteStatus.Font = Enum.Font.Gotham
+RemoteStatus.Parent = MainFrame
+
+local RemoteCorner = Instance.new("UICorner")
+RemoteCorner.CornerRadius = UDim.new(0, 8)
+RemoteCorner.Parent = RemoteStatus
+
+if AutoTrainRemote then
+    RemoteStatus.Text = "📡 Remote 1: ✅ " .. AutoTrainRemote.Name
+    RemoteStatus.TextColor3 = Color3.fromRGB(100, 255, 100)
+elseif TrainSpeedRemote then
+    RemoteStatus.Text = "📡 Remote 2: ✅ " .. TrainSpeedRemote.Name
+    RemoteStatus.TextColor3 = Color3.fromRGB(100, 255, 100)
+else
+    RemoteStatus.Text = "📡 Remote: ❌ NOT FOUND!"
+    RemoteStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
+end
+
 -- Status
 local Status = Instance.new("TextLabel")
-Status.Size = UDim2.new(0.9, 0, 0, 40)
-Status.Position = UDim2.new(0.05, 0, 0, 60)
+Status.Size = UDim2.new(0.9, 0, 0, 45)
+Status.Position = UDim2.new(0.05, 0, 0, 105)
 Status.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-Status.Text = "🎯 Status: Idle | Speed: x" .. Config.TrainSpeed
+Status.Text = "🎯 Status: Idle | Multiplier: x" .. Config.SpeedMultiplier
 Status.TextColor3 = Color3.fromRGB(255, 100, 100)
-Status.TextSize = 13
-Status.Font = Enum.Font.Gotham
+Status.TextSize = 14
+Status.Font = Enum.Font.GothamBold
 Status.Parent = MainFrame
 
 local StatusCorner = Instance.new("UICorner")
 StatusCorner.CornerRadius = UDim.new(0, 10)
 StatusCorner.Parent = Status
 
--- Speed Control Section
-local SpeedSection = Instance.new("Frame")
-SpeedSection.Size = UDim2.new(0.9, 0, 0, 100)
-SpeedSection.Position = UDim2.new(0.05, 0, 0, 110)
-SpeedSection.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-SpeedSection.BorderSizePixel = 0
-SpeedSection.Parent = MainFrame
+-- Speed Display
+local SpeedFrame = Instance.new("Frame")
+SpeedFrame.Size = UDim2.new(0.9, 0, 0, 90)
+SpeedFrame.Position = UDim2.new(0.05, 0, 0, 160)
+SpeedFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+SpeedFrame.BorderSizePixel = 0
+SpeedFrame.Parent = MainFrame
 
 local SpeedCorner = Instance.new("UICorner")
 SpeedCorner.CornerRadius = UDim.new(0, 10)
-SpeedCorner.Parent = SpeedSection
+SpeedCorner.Parent = SpeedFrame
 
 local SpeedLabel = Instance.new("TextLabel")
-SpeedLabel.Size = UDim2.new(1, 0, 0, 30)
-SpeedLabel.Position = UDim2.new(0, 0, 0, 10)
+SpeedLabel.Size = UDim2.new(1, 0, 0, 25)
+SpeedLabel.Position = UDim2.new(0, 0, 0, 8)
 SpeedLabel.BackgroundTransparency = 1
-SpeedLabel.Text = "🚀 Train Speed Multiplier"
+SpeedLabel.Text = "🚀 Speed Multiplier"
 SpeedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-SpeedLabel.TextSize = 15
+SpeedLabel.TextSize = 16
 SpeedLabel.Font = Enum.Font.GothamBold
-SpeedLabel.Parent = SpeedSection
+SpeedLabel.Parent = SpeedFrame
 
-local SpeedValue = Instance.new("TextLabel")
-SpeedValue.Size = UDim2.new(0.3, 0, 0, 25)
-SpeedValue.Position = UDim2.new(0.35, 0, 0, 45)
-SpeedValue.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
-SpeedValue.Text = "x" .. Config.TrainSpeed
-SpeedValue.TextColor3 = Color3.fromRGB(255, 215, 0)
-SpeedValue.TextSize = 16
-SpeedValue.Font = Enum.Font.GothamBold
-SpeedValue.Parent = SpeedSection
+local SpeedDisplay = Instance.new("TextLabel")
+SpeedDisplay.Size = UDim2.new(0.9, 0, 0, 35)
+SpeedDisplay.Position = UDim2.new(0.05, 0, 0, 38)
+SpeedDisplay.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+SpeedDisplay.Text = "x" .. Config.SpeedMultiplier
+SpeedDisplay.TextColor3 = Color3.fromRGB(255, 50, 50)
+SpeedDisplay.TextSize = 20
+SpeedDisplay.Font = Enum.Font.GothamBold
+SpeedDisplay.Parent = SpeedFrame
 
-local SpeedValueCorner = Instance.new("UICorner")
-SpeedValueCorner.CornerRadius = UDim.new(0, 8)
-SpeedValueCorner.Parent = SpeedValue
+local SpeedDisplayCorner = Instance.new("UICorner")
+SpeedDisplayCorner.CornerRadius = UDim.new(0, 8)
+SpeedDisplayCorner.Parent = SpeedDisplay
 
--- Speed Buttons
-local function CreateSpeedButton(text, pos, value)
+-- Preset Buttons
+local presets = {
+    {text = "x1M", value = 1000000, color = Color3.fromRGB(100, 200, 100)},
+    {text = "x10M", value = 10000000, color = Color3.fromRGB(255, 200, 50)},
+    {text = "x100M", value = 100000000, color = Color3.fromRGB(255, 150, 50)},
+    {text = "x1B", value = 1000000000, color = Color3.fromRGB(255, 50, 50)}
+}
+
+for i, preset in ipairs(presets) do
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.15, 0, 0, 25)
-    btn.Position = pos
-    btn.BackgroundColor3 = Color3.fromRGB(50, 150, 255)
-    btn.Text = text
+    btn.Size = UDim2.new(0.22, 0, 0, 35)
+    btn.Position = UDim2.new(0.05 + (i-1)*0.24, 0, 0, 260)
+    btn.BackgroundColor3 = preset.color
+    btn.Text = preset.text
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn.TextSize = 14
     btn.Font = Enum.Font.GothamBold
-    btn.Parent = SpeedSection
+    btn.Parent = MainFrame
     
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 6)
+    corner.CornerRadius = UDim.new(0, 8)
     corner.Parent = btn
     
     btn.MouseButton1Click:Connect(function()
-        Config.TrainSpeed = math.max(1, Config.TrainSpeed + value)
-        SpeedValue.Text = "x" .. Config.TrainSpeed
-        Status.Text = "🎯 Status: " .. (Config.Enabled and "Active" or "Idle") .. " | Speed: x" .. Config.TrainSpeed
-    end)
-    
-    return btn
-end
-
-CreateSpeedButton("-10", UDim2.new(0.05, 0, 0, 45), -10)
-CreateSpeedButton("-", UDim2.new(0.22, 0, 0, 45), -1)
-CreateSpeedButton("+", UDim2.new(0.68, 0, 0, 45), 1)
-CreateSpeedButton("+10", UDim2.new(0.8, 0, 0, 45), 10)
-
--- Quick Speed Presets
-local PresetFrame = Instance.new("Frame")
-PresetFrame.Size = UDim2.new(0.9, 0, 0, 35)
-PresetFrame.Position = UDim2.new(0.05, 0, 0, 75)
-PresetFrame.BackgroundTransparency = 1
-PresetFrame.Parent = SpeedSection
-
-local function CreatePreset(text, pos, speed)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.23, 0, 1, 0)
-    btn.Position = pos
-    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
-    btn.Text = text
-    btn.TextColor3 = Color3.fromRGB(200, 200, 200)
-    btn.TextSize = 11
-    btn.Font = Enum.Font.Gotham
-    btn.Parent = PresetFrame
-    
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 6)
-    corner.Parent = btn
-    
-    btn.MouseButton1Click:Connect(function()
-        Config.TrainSpeed = speed
-        SpeedValue.Text = "x" .. Config.TrainSpeed
-        Status.Text = "🎯 Status: " .. (Config.Enabled and "Active" or "Idle") .. " | Speed: x" .. Config.TrainSpeed
+        Config.SpeedMultiplier = preset.value
+        SpeedDisplay.Text = "x" .. Config.SpeedMultiplier
+        Status.Text = "🎯 Status: " .. (Config.Enabled and "🔥 ACTIVE" or "Idle") .. " | Multiplier: x" .. Config.SpeedMultiplier
     end)
 end
 
-CreatePreset("x50", UDim2.new(0, 0, 0, 0), 50)
-CreatePreset("x100", UDim2.new(0.26, 0, 0, 0), 100)
-CreatePreset("x200", UDim2.new(0.52, 0, 0, 0), 200)
-CreatePreset("x500", UDim2.new(0.78, 0, 0, 0), 500)
+-- Counter Display
+local Counter = Instance.new("TextLabel")
+Counter.Size = UDim2.new(0.9, 0, 0, 40)
+Counter.Position = UDim2.new(0.05, 0, 0, 305)
+Counter.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+Counter.Text = "📊 Spam Count: 0"
+Counter.TextColor3 = Color3.fromRGB(100, 255, 255)
+Counter.TextSize = 14
+Counter.Font = Enum.Font.GothamBold
+Counter.Parent = MainFrame
 
--- Auto Train Sections
-local function CreateTrainSection(name, yPos, icon)
-    local Section = Instance.new("Frame")
-    Section.Size = UDim2.new(0.9, 0, 0, 60)
-    Section.Position = UDim2.new(0.05, 0, 0, yPos)
-    Section.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-    Section.BorderSizePixel = 0
-    Section.Parent = MainFrame
-    
-    local SectionCorner = Instance.new("UICorner")
-    SectionCorner.CornerRadius = UDim.new(0, 10)
-    SectionCorner.Parent = Section
-    
-    local Label = Instance.new("TextLabel")
-    Label.Size = UDim2.new(0.5, 0, 0, 30)
-    Label.Position = UDim2.new(0.05, 0, 0, 5)
-    Label.BackgroundTransparency = 1
-    Label.Text = icon .. " " .. name
-    Label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Label.TextSize = 16
-    Label.Font = Enum.Font.GothamBold
-    Label.TextXAlignment = Enum.TextXAlignment.Left
-    Label.Parent = Section
-    
-    local Toggle = Instance.new("TextButton")
-    Toggle.Size = UDim2.new(0.4, 0, 0, 40)
-    Toggle.Position = UDim2.new(0.55, 0, 0, 10)
-    Toggle.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
-    Toggle.Text = "❌ OFF"
-    Toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Toggle.TextSize = 14
-    Toggle.Font = Enum.Font.GothamBold
-    Toggle.Parent = Section
-    
-    local ToggleCorner = Instance.new("UICorner")
-    ToggleCorner.CornerRadius = UDim.new(0, 10)
-    ToggleCorner.Parent = Toggle
-    
-    local Counter = Instance.new("TextLabel")
-    Counter.Size = UDim2.new(0.9, 0, 0, 20)
-    Counter.Position = UDim2.new(0.05, 0, 0, 38)
-    Counter.BackgroundTransparency = 1
-    Counter.Text = "📊 Trains: 0"
-    Counter.TextColor3 = Color3.fromRGB(100, 255, 255)
-    Counter.TextSize = 11
-    Counter.Font = Enum.Font.Gotham
-    Counter.TextXAlignment = Enum.TextXAlignment.Left
-    Counter.Parent = Section
-    
-    Toggle.MouseButton1Click:Connect(function()
-        Config.AutoTrain[name] = not Config.AutoTrain[name]
-        if Config.AutoTrain[name] then
-            Toggle.Text = "✅ ON"
-            Toggle.BackgroundColor3 = Color3.fromRGB(50, 220, 50)
-        else
-            Toggle.Text = "❌ OFF"
-            Toggle.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
-        end
-    end)
-    
-    return Counter
-end
-
-local Counters = {
-    Arms = CreateTrainSection("Arms", 220, "💪"),
-    Legs = CreateTrainSection("Legs", 290, "🦵"),
-    Back = CreateTrainSection("Back", 360, "🏋️"),
-    Agility = CreateTrainSection("Agility", 430, "⚡")
-}
+local CounterCorner = Instance.new("UICorner")
+CounterCorner.CornerRadius = UDim.new(0, 10)
+CounterCorner.Parent = Counter
 
 -- Control Buttons
-local StartButton = Instance.new("TextButton")
-StartButton.Size = UDim2.new(0.43, 0, 0, 40)
-StartButton.Position = UDim2.new(0.05, 0, 0, 500)
-StartButton.BackgroundColor3 = Color3.fromRGB(50, 220, 50)
-StartButton.Text = "▶️ START"
-StartButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-StartButton.TextSize = 14
-StartButton.Font = Enum.Font.GothamBold
-StartButton.Parent = MainFrame
+local StartBtn = Instance.new("TextButton")
+StartBtn.Size = UDim2.new(0.43, 0, 0, 45)
+StartBtn.Position = UDim2.new(0.05, 0, 0, 355)
+StartBtn.BackgroundColor3 = Color3.fromRGB(50, 220, 50)
+StartBtn.Text = "▶️ START"
+StartBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+StartBtn.TextSize = 16
+StartBtn.Font = Enum.Font.GothamBold
+StartBtn.Parent = MainFrame
 
 local StartCorner = Instance.new("UICorner")
 StartCorner.CornerRadius = UDim.new(0, 10)
-StartCorner.Parent = StartButton
+StartCorner.Parent = StartBtn
 
-local CloseButton = Instance.new("TextButton")
-CloseButton.Size = UDim2.new(0.43, 0, 0, 40)
-CloseButton.Position = UDim2.new(0.52, 0, 0, 500)
-CloseButton.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
-CloseButton.Text = "❌ Close"
-CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseButton.TextSize = 14
-CloseButton.Font = Enum.Font.GothamBold
-CloseButton.Parent = MainFrame
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0.43, 0, 0, 45)
+CloseBtn.Position = UDim2.new(0.52, 0, 0, 355)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+CloseBtn.Text = "❌ CLOSE"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.TextSize = 16
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.Parent = MainFrame
 
 local CloseCorner = Instance.new("UICorner")
 CloseCorner.CornerRadius = UDim.new(0, 10)
-CloseCorner.Parent = CloseButton
+CloseCorner.Parent = CloseBtn
 
--- Training System
-local TrainCounts = {Arms = 0, Legs = 0, Back = 0, Agility = 0}
+-- Variables
+local SpamCount = 0
 
--- Start/Stop Button
-StartButton.MouseButton1Click:Connect(function()
+-- Button Actions
+StartBtn.MouseButton1Click:Connect(function()
     Config.Enabled = not Config.Enabled
     
     if Config.Enabled then
-        StartButton.Text = "⏸️ STOP"
-        StartButton.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
-        Status.Text = "🎯 Status: Active | Speed: x" .. Config.TrainSpeed
+        StartBtn.Text = "⏸️ STOP"
+        StartBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+        Status.Text = "🎯 Status: 🔥 ACTIVE | Multiplier: x" .. Config.SpeedMultiplier
         Status.TextColor3 = Color3.fromRGB(100, 255, 100)
     else
-        StartButton.Text = "▶️ START"
-        StartButton.BackgroundColor3 = Color3.fromRGB(50, 220, 50)
-        Status.Text = "🎯 Status: Idle | Speed: x" .. Config.TrainSpeed
+        StartBtn.Text = "▶️ START"
+        StartBtn.BackgroundColor3 = Color3.fromRGB(50, 220, 50)
+        Status.Text = "🎯 Status: Idle | Multiplier: x" .. Config.SpeedMultiplier
         Status.TextColor3 = Color3.fromRGB(255, 100, 100)
     end
 end)
 
-CloseButton.MouseButton1Click:Connect(function()
+CloseBtn.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
 end)
 
--- ✅ SPEED BYPASS FUNCTION (YANG BENAR)
+-- ULTRA SPAM LOOP - METHOD 1: AutoTrainStateHasChanged
+if AutoTrainRemote then
+    spawn(function()
+        print("🔥 Using AutoTrainStateHasChanged remote")
+        while task.wait(Config.SpamDelay) do
+            if Config.Enabled then
+                -- SPAM dengan loop sangat cepat
+                for i = 1, 100 do -- Loop 100x per tick
+                    pcall(function()
+                        AutoTrainRemote:Fire(Config.SpeedMultiplier)
+                        SpamCount = SpamCount + 1
+                    end)
+                end
+                Counter.Text = "📊 Spam Count: " .. SpamCount
+            end
+        end
+    end)
+end
+
+-- ULTRA SPAM LOOP - METHOD 2: TrainSpeedHasChanged
+if TrainSpeedRemote then
+    spawn(function()
+        print("🔥 Using TrainSpeedHasChanged remote")
+        while task.wait(Config.SpamDelay) do
+            if Config.Enabled then
+                -- SPAM dengan loop sangat cepat
+                for i = 1, 100 do -- Loop 100x per tick
+                    pcall(function()
+                        TrainSpeedRemote:FireServer(Config.SpeedMultiplier)
+                        SpamCount = SpamCount + 1
+                    end)
+                end
+                Counter.Text = "📊 Spam Count: " .. SpamCount
+            end
+        end
+    end)
+end
+
+-- Extra spam loop untuk memastikan
 spawn(function()
-    while task.wait(0.01) do
-        if Config.Enabled and Config.BypassSpeed and Config.SpamSpeed then
+    while task.wait() do -- Loop secepat mungkin
+        if Config.Enabled then
+            -- Spam SEMUA remote yang ada
             pcall(function()
-                -- Spam remote dengan value tinggi
-                AutoTrainStateHasChanged:Fire(Config.TrainSpeed)
+                if AutoTrainRemote then
+                    for i = 1, 50 do
+                        AutoTrainRemote:Fire(1)
+                    end
+                end
+            end)
+            
+            pcall(function()
+                if TrainSpeedRemote then
+                    for i = 1, 50 do
+                        TrainSpeedRemote:FireServer(1)
+                    end
+                end
             end)
         end
     end
 end)
 
--- ✅ AUTO TRAIN LOOP (YANG BENAR)
-spawn(function()
-    while task.wait(0.05) do
-        for statName, enabled in pairs(Config.AutoTrain) do
-            if Config.Enabled and enabled then
-                -- Update counter
-                TrainCounts[statName] = TrainCounts[statName] + 1
-                Counters[statName].Text = "📊 Trains: " .. TrainCounts[statName]
-                
-                -- Fire remote berkali-kali untuk training lebih cepat
-                for i = 1, math.min(Config.TrainSpeed, 100) do
-                    pcall(function()
-                        AutoTrainStateHasChanged:Fire(i)
-                    end)
-                end
-            end
-        end
-    end
-end)
-
 -- Info
-print("✅ Train Speed Bypass FIXED Loaded!")
-print("📡 Remote Found:", AutoTrainStateHasChanged:GetFullName())
-print("🚀 Speed Multiplier:", Config.TrainSpeed)
-print("⚡ Remote path sudah diperbaiki dari Sigma Spy!")
+print("✅ ULTRA SPEED BYPASS LOADED!")
+print("💥 Multiplier: x" .. Config.SpeedMultiplier)
+print("⚡ Spam Delay: " .. Config.SpamDelay .. "s")
+if AutoTrainRemote then
+    print("📡 Remote 1:", AutoTrainRemote:GetFullName())
+end
+if TrainSpeedRemote then
+    print("📡 Remote 2:", TrainSpeedRemote:GetFullName())
+end
+print("🔥 TEKAN START UNTUK MULAI SPAM!")
