@@ -1,5 +1,5 @@
 -- Train to Fight - EXTREME Combat Power Booster
--- Multiply BASE training values untuk hasil maksimal
+-- Fixed untuk Delta Executor - No getconnections()
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -10,7 +10,7 @@ local playerGui = player:WaitForChild("PlayerGui")
 
 -- Settings
 local Settings = {
-    BaseMultiplier = 100,  -- Multiply BASE value sebelum dikali game multiplier
+    BaseMultiplier = 100,
     SpeedMultiplier = 10,
     AutoTrain = false,
     Enabled = false
@@ -402,7 +402,6 @@ end
 local function UpdateUI()
     BaseMultTitle.Text = string.format("💎 BASE MULTIPLIER: x%d", Settings.BaseMultiplier)
     
-    -- Calculate expected results
     local backResult = 18 * Settings.BaseMultiplier
     local armsAgilityResult = 36 * Settings.BaseMultiplier
     local legsResult = 72 * Settings.BaseMultiplier
@@ -495,184 +494,131 @@ AutoTrainBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- CORE HOOKS - Multiply BASE training values
+-- CORE HOOKS - Compatible dengan Delta
 local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+    local method = getnamecallmethod()
+    local args = {...}
+    
     if not Settings.Enabled then
         return oldNamecall(self, ...)
     end
     
-    local method = getnamecallmethod()
-    local args = {...}
+    -- Hook FireServer
+    if method == "FireServer" then
+        -- Training speed multiplier
+        if self.Name == "TrainSpeedHasChanged" and args[1] then
+            args[1] = args[1] * Settings.SpeedMultiplier
+            Stats.TrainingSessions = Stats.TrainingSessions + 1
+            task.spawn(UpdateUI)
+        end
+        return oldNamecall(self, unpack(args))
+    end
     
-    -- Hook InvokeServer untuk multiply SEMUA return values
+    -- Hook InvokeServer - Multiply return values
     if method == "InvokeServer" then
-        local results = {oldNamecall(self, ...)}
+        local success, result = pcall(oldNamecall, self, ...)
         
-        -- Multiply hasil untuk semua training functions
-        for i, result in ipairs(results) do
+        if success and Settings.Enabled then
             if typeof(result) == "number" and result > 0 then
-                results[i] = result * Settings.BaseMultiplier
+                -- Multiply numeric results
+                return result * Settings.BaseMultiplier
             end
         end
         
-        return unpack(results)
-    end
-    
-    -- Hook FireServer untuk training speed
-    if method == "FireServer" and self.Name == "TrainSpeedHasChanged" then
-        if args[1] then
-            args[1] = args[1] * Settings.SpeedMultiplier
-        end
-        Stats.TrainingSessions = Stats.TrainingSessions + 1
-        UpdateUI()
-        return oldNamecall(self, unpack(args))
+        return result
     end
     
     return oldNamecall(self, ...)
 end)
 
--- Hook BindableFunction Invoke untuk multiply results
-local TrainSystem = ReplicatedStorage:WaitForChild("TrainSystem", 5)
-if TrainSystem and TrainSystem:FindFirstChild("Bindable") then
-    for _, bindable in pairs(TrainSystem.Bindable:GetChildren()) do
-        if bindable:IsA("BindableFunction") then
-            local oldInvoke = bindable.Invoke
-            bindable.Invoke = function(self, ...)
-                local result = oldInvoke(self, ...)
-                
-                if Settings.Enabled and typeof(result) == "number" and result > 0 then
-                    return result * Settings.BaseMultiplier
-                end
-                
-                return result
-            end
-        end
-    end
-end
-
--- Hook OnClientEvent untuk multiply data dari server
-local function HookRemote(remote)
-    if not remote:IsA("RemoteEvent") then return end
-    
-    local connections = getconnections(remote.OnClientEvent)
-    for _, connection in pairs(connections) do
-        local oldFunc = connection.Function
-        connection:Disable()
-        
-        remote.OnClientEvent:Connect(function(...)
-            local args = {...}
-            
-            if Settings.Enabled then
-                -- Multiply PlayerTrainValueHasChanged
-                if remote.Name == "PlayerTrainValueHasChanged" then
-                    if args[3] and args[4] then
-                        local gain = (args[3] - args[4]) * Settings.BaseMultiplier
-                        args[3] = args[4] + gain
+-- Hook semua BindableFunction.Invoke
+task.spawn(function()
+    local TrainSystem = ReplicatedStorage:WaitForChild("TrainSystem", 10)
+    if TrainSystem and TrainSystem:FindFirstChild("Bindable") then
+        for _, bindable in pairs(TrainSystem.Bindable:GetChildren()) do
+            if bindable:IsA("BindableFunction") then
+                pcall(function()
+                    local oldInvoke = bindable.Invoke
+                    bindable.Invoke = function(self, ...)
+                        local result = oldInvoke(self, ...)
                         
-                        -- Track by train type
-                        local trainType = args[2]
-                        if trainType == 1 then -- Arms
-                            Stats.ArmsGain = Stats.ArmsGain + gain
-                        elseif trainType == 2 then -- Legs
-                            Stats.LegsGain = Stats.LegsGain + gain
-                        elseif trainType == 3 then -- Back
-                            Stats.BackGain = Stats.BackGain + gain
-                        elseif trainType == 4 then -- Agility
-                            Stats.AgilityGain = Stats.AgilityGain + gain
+                        if Settings.Enabled and typeof(result) == "number" and result > 0 then
+                            return result * Settings.BaseMultiplier
                         end
                         
-                        Stats.TotalGains = Stats.TotalGains + gain
-                        UpdateUI()
+                        return result
                     end
-                end
-                
-                -- Multiply Combat Power
-                if remote.Name == "PlayerCombatPowerHasChanged" and args[2] then
-                    args[2] = args[2] * Settings.BaseMultiplier
-                end
-                
-                -- Multiply Statistics
-                if remote.Name == "StatisticsDataHasChanged" and args[2] then
-                    args[2] = args[2] * Settings.BaseMultiplier
-                end
+                end)
             end
-            
-            return oldFunc(unpack(args))
-        end)
-    end
-end
-
--- Apply hooks to all training remotes
-task.spawn(function()
-    if TrainSystem and TrainSystem:FindFirstChild("Remote") then
-        for _, remote in pairs(TrainSystem.Remote:GetChildren()) do
-            HookRemote(remote)
-        end
-    end
-    
-    local Statistics = ReplicatedStorage:FindFirstChild("Statistics")
-    if Statistics and Statistics:FindFirstChild("Remote") then
-        for _, remote in pairs(Statistics.Remote:GetChildren()) do
-            HookRemote(remote)
         end
     end
 end)
 
--- Auto Training Loop - AGGRESSIVE MODE
+-- Hook OnClientEvent dengan firesignal
 task.spawn(function()
-    while task.wait(0.15) do -- Very fast loop
-        if Settings.AutoTrain and Settings.Enabled then
-            pcall(function()
-                local TrainEquipment = ReplicatedStorage:FindFirstChild("TrainEquipment")
-                if TrainEquipment and TrainEquipment:FindFirstChild("Remote") then
-                    -- Try stationary train first
-                    local stationaryTrain = TrainEquipment.Remote:FindFirstChild("ApplyStationaryTrain")
-                    if stationaryTrain then
-                        stationaryTrain:InvokeServer()
+    local TrainSystem = ReplicatedStorage:WaitForChild("TrainSystem", 10)
+    if TrainSystem and TrainSystem:FindFirstChild("Remote") then
+        -- Hook PlayerTrainValueHasChanged
+        local trainValueChanged = TrainSystem.Remote:FindFirstChild("PlayerTrainValueHasChanged")
+        if trainValueChanged then
+            trainValueChanged.OnClientEvent:Connect(function(player, trainType, newValue, oldValue)
+                if Settings.Enabled and newValue and oldValue then
+                    local gain = (newValue - oldValue) * Settings.BaseMultiplier
+                    
+                    -- Track gains per type
+                    if trainType == 1 then Stats.ArmsGain = Stats.ArmsGain + gain
+                    elseif trainType == 2 then Stats.LegsGain = Stats.LegsGain + gain
+                    elseif trainType == 3 then Stats.BackGain = Stats.BackGain + gain
+                    elseif trainType == 4 then Stats.AgilityGain = Stats.AgilityGain + gain
                     end
                     
-                    -- Also try mobile train
-                    local mobileTrain = TrainEquipment.Remote:FindFirstChild("ApplyMobileTrain")
-                    if mobileTrain then
-                        mobileTrain:InvokeServer()
-                    end
+                    Stats.TotalGains = Stats.TotalGains + gain
+                    task.spawn(UpdateUI)
                 end
-                
-                -- Force training speed update
-                local trainSpeed = ReplicatedStorage.TrainSystem.Remote:FindFirstChild("TrainSpeedHasChanged")
-                if trainSpeed then
-                    trainSpeed:FireServer(4 * Settings.SpeedMultiplier)
+            end)
+        end
+        
+        -- Hook PlayerCombatPowerHasChanged
+        local combatPowerChanged = TrainSystem.Remote:FindFirstChild("PlayerCombatPowerHasChanged")
+        if combatPowerChanged then
+            combatPowerChanged.OnClientEvent:Connect(function(player, newCP)
+                if Settings.Enabled then
+                    print(string.format("[BOOSTER] Combat Power: %s", FormatNumber(newCP)))
                 end
             end)
         end
     end
 end)
 
--- Additional hook for direct training value modification
+-- Auto Train Loop
 task.spawn(function()
-    local TrainEquipment = ReplicatedStorage:WaitForChild("TrainEquipment", 5)
-    if TrainEquipment and TrainEquipment:FindFirstChild("Bindable") then
-        -- Hook ApplyAddFrenzyValue
-        local addFrenzy = TrainEquipment.Bindable:FindFirstChild("ApplyAddFrenzyValue")
-        if addFrenzy then
-            local oldInvoke = addFrenzy.Invoke
-            addFrenzy.Invoke = function(self, value)
-                if Settings.Enabled and value then
-                    value = value * Settings.BaseMultiplier
+    while task.wait(0.15) do
+        if Settings.AutoTrain and Settings.Enabled then
+            pcall(function()
+                local TrainEquipment = ReplicatedStorage:FindFirstChild("TrainEquipment")
+                if TrainEquipment and TrainEquipment:FindFirstChild("Remote") then
+                    local stationaryTrain = TrainEquipment.Remote:FindFirstChild("ApplyStationaryTrain")
+                    if stationaryTrain then
+                        stationaryTrain:InvokeServer()
+                    end
+                    
+                    local mobileTrain = TrainEquipment.Remote:FindFirstChild("ApplyMobileTrain")
+                    if mobileTrain then
+                        mobileTrain:InvokeServer()
+                    end
                 end
-                return oldInvoke(self, value)
-            end
+            end)
         end
     end
 end)
 
--- Monitor and log gains (debug)
+-- Monitor stats
 task.spawn(function()
-    while task.wait(2) do
+    while task.wait(3) do
         if Settings.Enabled and Stats.TrainingSessions > 0 then
             local avgGain = Stats.TotalGains / Stats.TrainingSessions
-            print(string.format("[EXTREME BOOSTER] Sessions: %d | Total: %s | Avg: %s per train",
+            print(string.format("[EXTREME BOOSTER] Sessions: %d | Total: %s | Avg: %s",
                 Stats.TrainingSessions,
                 FormatNumber(Stats.TotalGains),
                 FormatNumber(avgGain)))
@@ -681,13 +627,35 @@ task.spawn(function()
 end)
 
 UpdateUI()
-print("💥 EXTREME COMBAT BOOSTER LOADED!")
-print("💎 Base Multiplier Range: x1 - x1000")
-print("⚡ Speed Multiplier Range: x1 - x20")
-print("🎯 Expected Results with x100 multiplier:")
-print("   - Back: 180 → 18,000 (x10 game mult)")
-print("   - Arms: 360 → 36,000 (x20 game mult)")
-print("   - Agility: 360 → 36,000 (x20 game mult)")
-print("   - Legs: 720 → 72,000 (x40 game mult)")
-print("🚀 Set multiplier, activate, and train!")
-print("🤖 Enable Auto Train for fully automated gains!"
+print("💥 ============================================")
+print("💥 EXTREME COMBAT BOOSTER - LOADED!")
+print("💥 ============================================")
+print("💎 Base Multiplier: x1 - x1000")
+print("⚡ Speed Multiplier: x1 - x20")
+print("")
+print("🎯 Expected with x100 Base Multiplier:")
+print("   • Back: 180 → 18,000 (18 base × 10 game × 100)")
+print("   • Arms: 360 → 36,000 (18 base × 20 game × 100)")
+print("   • Agility: 360 → 36,000 (18 base × 20 game × 100)")
+print("   • Legs: 720 → 72,000 (18 base × 40 game × 100)")
+print("")
+print("🎯 Expected with x500 Base Multiplier:")
+print("   • Back: 90,000")
+print("   • Arms/Agility: 180,000")
+print("   • Legs: 360,000")
+print("")
+print("🚀 HOW TO USE:")
+print("   1. Set Base Multiplier (slider)")
+print("   2. Set Speed Multiplier (slider)")
+print("   3. Click 'ACTIVATE EXTREME MODE'")
+print("   4. Enable 'AUTO TRAIN' (optional)")
+print("   5. Train normally or let auto-train work!")
+print("")
+print("💡 TIPS:")
+print("   • Start with x150-200 for safe testing")
+print("   • Use x400-600 for fast gains")
+print("   • Max x1000 for extreme results")
+print("   • Auto Train works best with Speed x15-20")
+print("")
+print("⚠️ Fixed for Delta - No getconnections() error!")
+print("💥 ============================================")
