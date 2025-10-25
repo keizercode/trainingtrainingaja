@@ -1,26 +1,27 @@
--- Train to Fight - Working Speed Bypass
--- Based on actual game remotes
+-- Train to Fight - Speed Bypass (FIXED VERSION)
+-- Menggunakan remote yang BENAR dari Sigma Spy
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 
--- Get actual remotes from game
-local TrainSystem = ReplicatedStorage:WaitForChild("TrainSystem")
-local Remote = TrainSystem:WaitForChild("Remote")
-local TrainSpeedRemote = Remote:WaitForChild("TrainSpeedHasChanged")
+-- ✅ REMOTE YANG BENAR (dari Sigma Spy)
+local AutoTrain = ReplicatedStorage:WaitForChild("AutoTrain")
+local Bindable = AutoTrain:WaitForChild("Bindable")
+local AutoTrainStateHasChanged = Bindable:WaitForChild("AutoTrainStateHasChanged")
 
 -- Configuration
 local Config = {
-    TrainSpeed = 100,          -- Speed multiplier (game default: 1-3, kita bypass jadi 100+)
+    TrainSpeed = 100,
     AutoTrain = {
         Arms = false,
         Legs = false,
         Back = false,
         Agility = false
     },
-    BypassSpeed = true,        -- Bypass x3.0 limit
-    SpamSpeed = true           -- Spam speed changes untuk training lebih cepat
+    BypassSpeed = true,
+    SpamSpeed = true,
+    Enabled = false
 }
 
 -- GUI Setup
@@ -30,8 +31,8 @@ ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 400, 0, 550)
-MainFrame.Position = UDim2.new(0.5, -200, 0.5, -275)
+MainFrame.Size = UDim2.new(0, 400, 0, 580)
+MainFrame.Position = UDim2.new(0.5, -200, 0.5, -290)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -46,9 +47,9 @@ UICorner.Parent = MainFrame
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 50)
 Title.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-Title.Text = "⚡ Train Speed Bypass"
+Title.Text = "⚡ Train Speed Bypass (FIXED)"
 Title.TextColor3 = Color3.fromRGB(255, 215, 0)
-Title.TextSize = 22
+Title.TextSize = 20
 Title.Font = Enum.Font.GothamBold
 Title.Parent = MainFrame
 
@@ -61,8 +62,8 @@ local Status = Instance.new("TextLabel")
 Status.Size = UDim2.new(0.9, 0, 0, 40)
 Status.Position = UDim2.new(0.05, 0, 0, 60)
 Status.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-Status.Text = "🎯 Status: Ready | Speed: x" .. Config.TrainSpeed
-Status.TextColor3 = Color3.fromRGB(100, 255, 100)
+Status.Text = "🎯 Status: Idle | Speed: x" .. Config.TrainSpeed
+Status.TextColor3 = Color3.fromRGB(255, 100, 100)
 Status.TextSize = 13
 Status.Font = Enum.Font.Gotham
 Status.Parent = MainFrame
@@ -126,7 +127,7 @@ local function CreateSpeedButton(text, pos, value)
     btn.MouseButton1Click:Connect(function()
         Config.TrainSpeed = math.max(1, Config.TrainSpeed + value)
         SpeedValue.Text = "x" .. Config.TrainSpeed
-        Status.Text = "🎯 Status: Active | Speed: x" .. Config.TrainSpeed
+        Status.Text = "🎯 Status: " .. (Config.Enabled and "Active" or "Idle") .. " | Speed: x" .. Config.TrainSpeed
     end)
     
     return btn
@@ -162,7 +163,7 @@ local function CreatePreset(text, pos, speed)
     btn.MouseButton1Click:Connect(function()
         Config.TrainSpeed = speed
         SpeedValue.Text = "x" .. Config.TrainSpeed
-        Status.Text = "🎯 Status: Active | Speed: x" .. Config.TrainSpeed
+        Status.Text = "🎯 Status: " .. (Config.Enabled and "Active" or "Idle") .. " | Speed: x" .. Config.TrainSpeed
     end)
 end
 
@@ -242,29 +243,19 @@ local Counters = {
 }
 
 -- Control Buttons
-local AllToggle = Instance.new("TextButton")
-AllToggle.Size = UDim2.new(0.43, 0, 0, 40)
-AllToggle.Position = UDim2.new(0.05, 0, 0, 500)
-AllToggle.BackgroundColor3 = Color3.fromRGB(50, 150, 255)
-AllToggle.Text = "🔥 Toggle All"
-AllToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-AllToggle.TextSize = 14
-AllToggle.Font = Enum.Font.GothamBold
-AllToggle.Parent = MainFrame
+local StartButton = Instance.new("TextButton")
+StartButton.Size = UDim2.new(0.43, 0, 0, 40)
+StartButton.Position = UDim2.new(0.05, 0, 0, 500)
+StartButton.BackgroundColor3 = Color3.fromRGB(50, 220, 50)
+StartButton.Text = "▶️ START"
+StartButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+StartButton.TextSize = 14
+StartButton.Font = Enum.Font.GothamBold
+StartButton.Parent = MainFrame
 
-local AllCorner = Instance.new("UICorner")
-AllCorner.CornerRadius = UDim.new(0, 10)
-AllCorner.Parent = AllToggle
-
-AllToggle.MouseButton1Click:Connect(function()
-    local allActive = true
-    for _, v in pairs(Config.AutoTrain) do
-        if not v then allActive = false break end
-    end
-    for k, _ in pairs(Config.AutoTrain) do
-        Config.AutoTrain[k] = not allActive
-    end
-end)
+local StartCorner = Instance.new("UICorner")
+StartCorner.CornerRadius = UDim.new(0, 10)
+StartCorner.Parent = StartButton
 
 local CloseButton = Instance.new("TextButton")
 CloseButton.Size = UDim2.new(0.43, 0, 0, 40)
@@ -280,38 +271,55 @@ local CloseCorner = Instance.new("UICorner")
 CloseCorner.CornerRadius = UDim.new(0, 10)
 CloseCorner.Parent = CloseButton
 
+-- Training System
+local TrainCounts = {Arms = 0, Legs = 0, Back = 0, Agility = 0}
+
+-- Start/Stop Button
+StartButton.MouseButton1Click:Connect(function()
+    Config.Enabled = not Config.Enabled
+    
+    if Config.Enabled then
+        StartButton.Text = "⏸️ STOP"
+        StartButton.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+        Status.Text = "🎯 Status: Active | Speed: x" .. Config.TrainSpeed
+        Status.TextColor3 = Color3.fromRGB(100, 255, 100)
+    else
+        StartButton.Text = "▶️ START"
+        StartButton.BackgroundColor3 = Color3.fromRGB(50, 220, 50)
+        Status.Text = "🎯 Status: Idle | Speed: x" .. Config.TrainSpeed
+        Status.TextColor3 = Color3.fromRGB(255, 100, 100)
+    end
+end)
+
 CloseButton.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
 end)
 
--- Training System
-local TrainCounts = {Arms = 0, Legs = 0, Back = 0, Agility = 0}
-
--- Speed Bypass Function (kirim speed value terus menerus)
+-- ✅ SPEED BYPASS FUNCTION (YANG BENAR)
 spawn(function()
-    while task.wait(0.01) do -- Loop cepat untuk bypass speed
-        if Config.BypassSpeed and Config.SpamSpeed then
+    while task.wait(0.01) do
+        if Config.Enabled and Config.BypassSpeed and Config.SpamSpeed then
             pcall(function()
-                -- Spam speed changes dengan value tinggi
-                TrainSpeedRemote:FireServer(Config.TrainSpeed)
+                -- Spam remote dengan value tinggi
+                AutoTrainStateHasChanged:Fire(Config.TrainSpeed)
             end)
         end
     end
 end)
 
--- Auto Train Loop
+-- ✅ AUTO TRAIN LOOP (YANG BENAR)
 spawn(function()
-    while task.wait(0.1) do
+    while task.wait(0.05) do
         for statName, enabled in pairs(Config.AutoTrain) do
-            if enabled then
+            if Config.Enabled and enabled then
                 -- Update counter
                 TrainCounts[statName] = TrainCounts[statName] + 1
                 Counters[statName].Text = "📊 Trains: " .. TrainCounts[statName]
                 
-                -- Fire speed remote berkali-kali untuk training lebih cepat
+                -- Fire remote berkali-kali untuk training lebih cepat
                 for i = 1, math.min(Config.TrainSpeed, 100) do
                     pcall(function()
-                        TrainSpeedRemote:FireServer(i)
+                        AutoTrainStateHasChanged:Fire(i)
                     end)
                 end
             end
@@ -320,7 +328,7 @@ spawn(function()
 end)
 
 -- Info
-print("✅ Train Speed Bypass Loaded!")
-print("📡 Remote Found:", TrainSpeedRemote:GetFullName())
+print("✅ Train Speed Bypass FIXED Loaded!")
+print("📡 Remote Found:", AutoTrainStateHasChanged:GetFullName())
 print("🚀 Speed Multiplier:", Config.TrainSpeed)
-print("⚡ Game limit (x3.0) BYPASSED!")
+print("⚡ Remote path sudah diperbaiki dari Sigma Spy!")
